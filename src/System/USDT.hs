@@ -43,28 +43,6 @@ mkTracepoint' _ = return Tracepoint
 
 newtype Tracepoint args = Tracepoint (IO ())
 
-dtraceCmd :: FilePath
-dtraceCmd = DTRACE
-
-dtraceDef :: String -> String -> String
-dtraceDef providerName tpName = unlines
-    [ "provider " ++ providerName ++ " {"
-    , "  probe " ++ tpName ++ "();"
-    , "};"
-    ]
-
-buildDTraceObject :: FilePath -> Q FilePath
-buildDTraceObject dFile = do
-    oFile <- addTempFile ".o"
-    runIO $ callProcess dtraceCmd ["-C", "-G", "-s", dFile, "-o", oFile]
-    return oFile
-
-buildDTraceHeader :: FilePath -> Q FilePath
-buildDTraceHeader dFile = do
-    hFile <- addTempFile ".h"
-    runIO $ callProcess dtraceCmd ["-C", "-h", "-s", dFile, "-o", hFile]
-    return hFile
-
 mkProviderName :: Q String
 mkProviderName = do
     Module _ (ModName mn) <- thisModule
@@ -76,17 +54,18 @@ mkProviderName = do
 mkTracepoint' tpName = do
     providerName <- mkProviderName
 
-    dFile <- addTempFile ".d"
-    runIO $ writeFile dFile (dtraceDef providerName tpName)
-    oFile <- buildDTraceObject dFile
-    hFile <- buildDTraceHeader dFile
-    addForeignFilePath RawObject oFile
+    let func = "hs_" ++ map toUpper providerName ++ "_" ++ map toUpper tpName
+    let cStub = unlines
+            [ "#include <sys/sdt.h>"
+            , "void " ++ func ++ "(void) {"
+            , "  DTRACE_PROBE(" ++ providerName ++ ", " ++ tpName ++ ");"
+            , "}"
+            ]
+    addForeignSource LangC cStub
 
     nm <- newName ("usdt_" ++ tpName)
     fimp_ty <- [t| IO () |]
-    let fimp = ImportF CApi Unsafe cName nm fimp_ty
-        cName = hFile ++ " " ++ macro
-        macro = map toUpper providerName ++ "_" ++ map toUpper tpName
+    let fimp = ImportF CCall Unsafe func nm fimp_ty
     addTopDecls [ForeignD fimp]
 
     [e| Tracepoint $(varE nm) |]
