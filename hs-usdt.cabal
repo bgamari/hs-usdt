@@ -12,10 +12,10 @@ synopsis:           A small binding for introduction of USDT tracepoints in Hask
 license:            BSD-3-Clause
 author:             Ben Gamari
 maintainer:         ben@smart-cactus.org
-
 copyright:          (c) 2022 Ben Gamari
 category:           System
 extra-source-files: CHANGELOG.md
+build-type:         Configure
 
 library
     exposed-modules:  System.USDT

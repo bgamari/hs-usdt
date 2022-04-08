@@ -2,7 +2,11 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module System.USDT where
+module System.USDT
+  ( tracepoint
+  , mkTracepoint
+  , triggerTracepoint
+  ) where
 
 import Data.Char
 import Language.Haskell.TH
@@ -10,10 +14,32 @@ import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 import System.Process
 
-dtraceCmd :: FilePath
-dtraceCmd = "dtrace"
+-- | Register a new tracepoint and trigger it.
+tracepoint :: String -> ExpQ
+tracepoint tpName = do
+    tp <- mkTracepoint tpName
+    triggerTracepoint tp
+
+-- | Trigger a tracepoint previously created using 'mkTracepoint'.
+triggerTracepoint :: Tracepoint () -> Q Exp
+
+-- | Create a new tracepoint.
+mkTracepoint :: String -> Q (Tracepoint ())
+
+#if !defined(DTRACE)
+
+data Tracepoint args = Tracepoint
+
+triggerTracepoint _ = [e| return () |]
+
+mkTracepoint _ = return Tracepoint
+
+#else
 
 newtype Tracepoint args = Tracepoint Name
+
+dtraceCmd :: FilePath
+dtraceCmd = DTRACE
 
 dtraceDef :: String -> String -> String
 dtraceDef providerName tpName = unlines
@@ -42,7 +68,6 @@ mkProviderName = do
         f c   = c
     return ("hs_usdt__" ++ mn)
 
-mkTracepoint :: String -> Q (Tracepoint ())
 mkTracepoint tpName = do
     providerName <- mkProviderName
 
@@ -61,11 +86,7 @@ mkTracepoint tpName = do
 
     return (Tracepoint nm)
 
-triggerTracepoint :: Tracepoint () -> Q Exp
 triggerTracepoint (Tracepoint nm) = varE nm
 
-tracepoint :: String -> ExpQ
-tracepoint tpName = do
-    tp <- mkTracepoint tpName
-    triggerTracepoint tp
+#endif
 
