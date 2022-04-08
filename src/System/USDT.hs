@@ -3,8 +3,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module System.USDT
-  ( tracepoint
+  ( Tracepoint
+  , tracepoint
   , mkTracepoint
+  , mkTracepoint'
   , triggerTracepoint
   ) where
 
@@ -15,28 +17,31 @@ import Language.Haskell.TH.Quote
 import System.Process
 
 -- | Register a new tracepoint and trigger it.
-tracepoint :: String -> ExpQ
+tracepoint :: String -> Q Exp
 tracepoint tpName = do
-    tp <- mkTracepoint tpName
-    triggerTracepoint tp
+    [e| triggerTracepoint $(mkTracepoint' tpName) |]
+
+-- | Register a new tracepoint.
+mkTracepoint' :: String -> Q Exp
+
+-- | Register a new tracepoint.
+mkTracepoint :: String -> Code Q (Tracepoint ())
+mkTracepoint lbl = unsafeCodeCoerce (mkTracepoint' lbl)
 
 -- | Trigger a tracepoint previously created using 'mkTracepoint'.
-triggerTracepoint :: Tracepoint () -> Q Exp
-
--- | Create a new tracepoint.
-mkTracepoint :: String -> Q (Tracepoint ())
+triggerTracepoint :: Tracepoint () -> IO ()
 
 #if !defined(DTRACE)
 
 data Tracepoint args = Tracepoint
 
-triggerTracepoint _ = [e| return () |]
+triggerTracepoint _ = return ()
 
-mkTracepoint _ = return Tracepoint
+mkTracepoint' _ = return Tracepoint
 
 #else
 
-newtype Tracepoint args = Tracepoint Name
+newtype Tracepoint args = Tracepoint (IO ())
 
 dtraceCmd :: FilePath
 dtraceCmd = DTRACE
@@ -68,7 +73,7 @@ mkProviderName = do
         f c   = c
     return ("hs_usdt__" ++ mn)
 
-mkTracepoint tpName = do
+mkTracepoint' tpName = do
     providerName <- mkProviderName
 
     dFile <- addTempFile ".d"
@@ -84,9 +89,9 @@ mkTracepoint tpName = do
         macro = map toUpper providerName ++ "_" ++ map toUpper tpName
     addTopDecls [ForeignD fimp]
 
-    return (Tracepoint nm)
+    [e| Tracepoint $(varE nm) |]
 
-triggerTracepoint (Tracepoint nm) = varE nm
+triggerTracepoint (Tracepoint x) = x
 
 #endif
 
