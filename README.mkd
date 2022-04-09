@@ -25,14 +25,26 @@ ghc-options: -optl-fuse-ld=bfd
 
 ## Example session
 
+First build the project,
 ```bash
+$ cat cabal.project
+packages: .
+package hs-usdt
+    extra-include-dirs: /nix/store/n7kzk7x7xj12sdcb5jci2di8kpk56z3n-libsystemtap-3.2/include
+    ghc-options: -optl-Wl,--build-id -optl-fuse-ld=bfd
 $ cabal build
 $ exe="$(cabal list-bin hs_usdt_test)"
+```
+Now let `perf` know about the executable's tracepoints:
+```bash
 $ perf buildid-cache --add "$exe"
 $ perf probe -x "$exe" sdt_hs_usdt__Main:tp1
 $ perf list | grep hs-usdt
   sdt_hs_usdt__Main:tp1                              [Tracepoint event]
   sdt_hs_usdt__Main:tp1                              [SDT event]
+```
+Now we can run the executable under perf, e.g. recording tracepoint events:
+```bash
 $ perf record -e sdt_hs_usdt__Main:tp1 "$exe"
 Hello, Haskell!
 [ perf record: Woken up 1 times to write data ]
