@@ -37,7 +37,7 @@ data Tracepoint args = Tracepoint
 
 triggerTracepoint _ = return ()
 
-mkTracepoint' _ = return Tracepoint
+mkTracepoint' _ = [e| Tracepoint |]
 
 #else
 
