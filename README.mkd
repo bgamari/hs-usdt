@@ -6,10 +6,22 @@ tested on Linux with Systemtap's `dtrace` implementation.
 
 Note that convenient use with `perf` executables must be
 built with `ld`'s `--build-id` flag. This can be achieved by
-adding the following to your `.cabal` or `caba.project` file:
+adding the following to your `.cabal` or `cabal.project` file:
 ```
 ghc-options: -optl-Wl,--build-id
 ```
+
+## Caveats
+
+Unfortunately, the default linker used by most GHC installations, `ld.gold`
+appears to [mislink][] USDT probes. Consequently, it is necessary to instead
+use `ld.bfd` or `ld.lld`. This can be achieved by adding the following to your
+cabal file:
+```
+ghc-options: -optl-fuse-ld=bfd
+```
+
+[mislink]: https://github.com/iovisor/bcc/issues/1528
 
 ## Example session
 
@@ -21,36 +33,11 @@ $ perf probe -x "$exe" sdt_hs_usdt__Main:tp1
 $ perf list | grep hs-usdt
   sdt_hs_usdt__Main:tp1                              [Tracepoint event]
   sdt_hs_usdt__Main:tp1                              [SDT event]
-```
-One would think that the following should now work:
-```bash
-$ perf trace -e sdt_hs_usdt__Main:tp1 "$exe"
-```
-Sadly, `perf` seems to struggle to figure out the correct location of the
-tracepoints, failing to subtract the load address. However, if we manually
-do so the tracepoint works as expected:
-
-```
-$ readelf -n $exe
-...
-
-Displaying notes found in: .note.stapsdt
-  Owner                Data size        Description
-  stapsdt              0x0000002b       NT_STAPSDT (SystemTap probe descriptors)
-    Provider: hs_usdt__Main
-    Name: tp2
-    Location: 0x000000000040946a, Base: 0x0000000000000000, Semaphore: 0x0000000000000000
-    Arguments: 
-  stapsdt              0x0000002b       NT_STAPSDT (SystemTap probe descriptors)
-    Provider: hs_usdt__Main
-    Name: tp1
-    Location: 0x000000000040946c, Base: 0x0000000000000000, Semaphore: 0x0000000000000000
-    Arguments: 
-
-...
-$ echo "p:sdt_hs_usdt__Main/tp1 $exe:0x946c" > /sys/kernel/debug/tracing/uprobe_events
-$ perf record -e sdt_hs_usdt__Main:tp1 $exe
+$ perf record -e sdt_hs_usdt__Main:tp1 "$exe"
+Hello, Haskell!
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.043 MB perf.data (2 samples) ]
 $ perf script
-    hs_usdt_test 143396 [004] 171984.050960: sdt_hs_usdt__Main:tp1: (40946c)
-    hs_usdt_test 143396 [004] 171984.050963: sdt_hs_usdt__Main:tp1: (40946c)
+    hs_usdt_test 166810 [015] 191748.282102: sdt_hs_usdt__Main:tp1: (403354)
+    hs_usdt_test 166810 [015] 191748.282104: sdt_hs_usdt__Main:tp1: (403354)
 ```
