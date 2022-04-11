@@ -39,7 +39,7 @@ Now let `perf` know about the executable's tracepoints:
 ```bash
 $ perf buildid-cache --add "$exe"
 $ perf probe -x "$exe" sdt_hs_usdt__Main:tp1
-$ perf list | grep hs-usdt
+$ perf list | grep hs_usdt
   sdt_hs_usdt__Main:tp1                              [Tracepoint event]
   sdt_hs_usdt__Main:tp1                              [SDT event]
 ```
