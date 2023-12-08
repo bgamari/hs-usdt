@@ -27,11 +27,11 @@ ghc-options: -optl-fuse-ld=bfd
 
 First build the project,
 ```bash
-$ cat cabal.project
-packages: .
-package hs-usdt
-    extra-include-dirs: /nix/store/n7kzk7x7xj12sdcb5jci2di8kpk56z3n-libsystemtap-3.2/include
-    ghc-options: -optl-Wl,--build-id -optl-fuse-ld=bfd
+$ nix shell nixpkgs#linuxPackages.systemtap
+$ nix build nixpkgs#libsystemtap
+$ echo "package hs-usdt" > cabal.project.local
+$ echo "  extra-include-dirs: $(realpath ./result)/include" >> cabal.project.local
+$ echo "  ghc-options: -optl-Wl,--build-id -optl-fuse-ld=bfd" >> cabal.project.local
 $ cabal build
 $ exe="$(cabal list-bin hs_usdt_test)"
 ```
