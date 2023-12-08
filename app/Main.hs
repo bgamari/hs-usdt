@@ -12,7 +12,7 @@ tp1 = $(mkTracepoint' (Proxy @Int) "tp1")
 
 main :: IO ()
 main = do
-    triggerTracepoint tp1 (42)
+    triggerTracepoint tp1 42
     $(tracepoint "tp2" ())
-    triggerTracepoint tp1 (52)
+    triggerTracepoint tp1 52
     putStrLn "Hello, Haskell!"

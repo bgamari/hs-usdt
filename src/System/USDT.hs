@@ -64,7 +64,8 @@ instance PrimArg Int where
 tracepoint :: forall args. (Lift args, TPArgs args)
            => String -> args -> Q Exp
 tracepoint tpName args = do
-    [e| triggerTracepoint $(mkTracepoint' (Proxy @args) tpName) args |]
+    tp <- mkTracepoint' (Proxy @args) tpName
+    [e| triggerTracepoint $(pure tp) args |]
 
 -- | Register a new tracepoint.
 mkTracepoint' :: forall args. (TPArgs args)
