@@ -3,16 +3,30 @@
 
 module Main where
 
-import Data.Proxy
+import Control.Monad
+import Control.Concurrent
+import System.Environment
 import System.USDT
-import Data.Tuple
+import Data.Proxy
 
-tp1 :: Tracepoint Int
-tp1 = $(mkTracepoint' (Proxy @Int) "tp1")
+-- how many primes to calculate in each thread
+n_primes :: Int
+n_primes = 5000
 
-main :: IO ()
-main = do
-    triggerTracepoint tp1 42
-    $(tracepoint "tp2" ())
-    triggerTracepoint tp1 52
-    putStrLn "Hello, Haskell!"
+primes1 n done
+  = do --putStrLn (show ((sieve [n..])!!n_primes))
+       $(tracepoint' @Int Proxy "start") n
+       show ((sieve [n..])!!n_primes) `seq` return ()
+       putMVar done ()
+       $(tracepoint' @Int Proxy "end") n
+
+sieve (p:xs) = p : sieve [x | x <- xs, not (x `mod` p == 0)]
+
+main
+  = runInUnboundThread $ do
+       --[str] <- getArgs
+       --let instances = read str :: Int
+       let instances = 20
+       dones <- replicateM instances newEmptyMVar
+       sequence_ [forkIO (primes1 (i+2) (dones!!i)) | i <- [0..instances-1]]
+       sequence_ [takeMVar (dones!!i) | i <- [0..instances-1]]

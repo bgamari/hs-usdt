@@ -9,6 +9,7 @@
 module System.USDT
   ( Tracepoint
   , tracepoint
+  , tracepoint'
   , mkTracepoint
   , mkTracepoint'
   , triggerTracepoint
@@ -65,6 +66,12 @@ tracepoint :: forall args. (Lift args, TPArgs args)
            => String -> Code Q (args -> IO ())
 tracepoint tpName =
     [e|| triggerTracepoint $$(mkTracepoint tpName) ||]
+
+tracepoint' :: forall args. (Lift args, TPArgs args)
+            => Proxy args -> String -> Q Exp
+tracepoint' proxy tpName = do
+    let tp = mkTracepoint' proxy tpName
+    [e| triggerTracepoint $(tp) |]
 
 -- | Register a new tracepoint.
 mkTracepoint :: forall args. (TPArgs args)
