@@ -62,19 +62,18 @@ instance PrimArg Int where
 
 -- | Register a new tracepoint and trigger it.
 tracepoint :: forall args. (Lift args, TPArgs args)
-           => String -> args -> Q Exp
-tracepoint tpName args = do
-    tp <- mkTracepoint' (Proxy @args) tpName
-    [e| triggerTracepoint $(pure tp) args |]
-
--- | Register a new tracepoint.
-mkTracepoint' :: forall args. (TPArgs args)
-              => Proxy args -> String -> Q Exp
+           => String -> Code Q (args -> IO ())
+tracepoint tpName =
+    [e|| triggerTracepoint $$(mkTracepoint tpName) ||]
 
 -- | Register a new tracepoint.
 mkTracepoint :: forall args. (TPArgs args)
              => String -> Code Q (Tracepoint args)
 mkTracepoint lbl = unsafeCodeCoerce (mkTracepoint' (Proxy @args) lbl)
+
+-- | Register a new tracepoint.
+mkTracepoint' :: forall args. (TPArgs args)
+              => Proxy args -> String -> Q Exp
 
 -- | Trigger a tracepoint previously created using 'mkTracepoint'.
 triggerTracepoint :: Tracepoint args -> args -> IO ()
